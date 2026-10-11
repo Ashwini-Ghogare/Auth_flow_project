@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Auth Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background: #fdfbf7; color: #333; }
+        .card { background: #fff; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 6px; max-width: 400px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        input { display: block; margin: 10px 0; padding: 8px; width: 100%; box-sizing: border-box; }
+        button { padding: 8px 15px; background: #5c4033; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #3d281f; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .status { margin-bottom: 15px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>Simple Authentication Demo</h1>
+    <div id="status" class="status">Not logged in</div>
+
+    <!-- 1. Register -->
+    <div class="card">
+        <h3>1. Register</h3>
+        <input type="text" id="regUsername" placeholder="Username / Email">
+        <input type="password" id="regPassword" placeholder="Password (8+ characters)">
+        <input type="text" id="regRole" placeholder="Role (USER or ADMIN, optional)">
+        <button onclick="register()">Create account</button>
+    </div>
+
+    <!-- 2. Log in -->
+    <div class="card">
+        <h3>2. Log in</h3>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="login()">Log in</button>
+        <p style="font-size: 12px; color: #666; margin-top: 8px;">
+            Demo accounts (from seed.js):<br>
+            admin / admin123 (Role: ADMIN)
+        </p>
+    </div>
+
+    <!-- 3. Try the protected pages -->
+    <div class="card" style="max-width: 700px;">
+        <h3>3. Try the protected pages</h3>
+        <button onclick="fetchData('/api/protected')">My profile (any logged-in user)</button>
+        <button onclick="fetchData('/api/admin')">Admin (all users (admins, only))</button>
+        <button onclick="logout()" style="background: #a94442;">Log out</button>
+    </div>
+
+    <!-- What just happened? / Response -->
+    <div class="card" style="max-width: 700px;">
+        <h3>What just happened?</h3>
+        <pre id="output">Register or log in to begin.</pre>
+    </div>
+
+    <script>
+        let authToken = "";
+
+        function updateStatus() {
+            const statusDiv = document.getElementById("status");
+            if (authToken) {
+                statusDiv.innerText = "Logged in (Token saved in memory)";
+                statusDiv.style.color = "green";
+            } else {
+                statusDiv.innerText = "Not logged in";
+                statusDiv.style.color = "#555";
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById("regUsername").value;
+            const password = document.getElementById("regPassword").value;
+            const role = document.getElementById("regRole").value;
+
+            try {
+                const res = await fetch("/api/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password, role })
+                });
+                const data = await res.json();
+                document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById("output").innerText = "Error: " + err.message;
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById("loginUsername").value;
+            const password = document.getElementById("loginPassword").value;
+
+            try {
+                const res = await fetch("/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.token) {
+                    authToken = data.token;
+                    updateStatus();
+                }
+                document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById("output").innerText = "Error: " + err.message;
+            }
+        }
+
+        async function fetchData(url) {
+            if (!authToken) {
+                document.getElementById("output").innerText = "Error: Please log in first to get a token!";
+                return;
+            }
+
+            try {
+                const res = await fetch(url, {
+                    headers: { "Authorization": `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                document.getElementById("output").innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById("output").innerText = "Error: " + err.message;
+            }
+        }
+
+        function logout() {
+            authToken = "";
+            updateStatus();
+            document.getElementById("output").innerText = "Token removed, logged out successfully.";
+        }
+    </script>
+</body>
+</html>
